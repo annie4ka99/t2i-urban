@@ -1,0 +1,57 @@
+top,building top
+street,street
+building,building
+city,city
+road,road in city
+wall,city wall
+track,racing track
+court,courthouse building
+park,empty park
+sidewalk,sidewalk
+terminal,airport terminal outside
+construction,construction
+roadway,roadway
+neighborhood,neighborhood
+storage,storage building
+hospital,hospital building
+tower,tower
+parking,parking empty
+station,station outside
+house,house
+restaurant,restaurant outside
+intersection,intersection street empty
+airport,airport outside
+bridge,bridge in city
+runway,runway strip
+office,office building
+store,store building
+garage,house garage
+market,market in street
+yard,yard
+train,train
+hotel,hotel building
+post,post
+platform,platform outside
+base,building base
+town,town
+stall,stall
+school,school
+bus,bus
+shop,shop entrance
+church,church building
+railroad,railroad
+bank,bank building
+tunnel,tunnel
+bakery,bakery building
+entrance,building entrance
+factory,factory building
+highway,empty highway
+roof,roof
+subway,subway entrance
+square,city square
+urban,urban street
+structure,structure in the city
+walkway,walkway
+pavement,pavement
+museum,museum building
+steeple,steeple

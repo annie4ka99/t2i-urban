@@ -1,0 +1,11 @@
+cherrypy==18.1.1
+pyyaml
+psutil
+matplotlib
+scipy
+numpy
+timm
+kornia
+pyunsplash
+requests
+googletrans==4.0.0-rc1
