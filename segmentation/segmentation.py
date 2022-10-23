@@ -107,6 +107,131 @@ model_facades = get_model('segmentation/configs/segformer/segformer_mit-b5_512x5
 model_urban = get_model('segmentation/configs/segformer/segformer_mit-b5_512x512_160k_ade_urban.py',
                         'segmentation//work_dirs/ade_urban_segformer/latest.pth')
 
+semantic_nc = 31
+back_color = 0
+
+window_no_replace = np.array(
+    [[1, 1, 1, 1, 1, 1, 1, 1, 1],
+     [1, 2, 2, 2, 2, 2, 2, 2, 1],
+     [1, 2, 3, 3, 3, 3, 3, 2, 1],
+     [1, 2, 3, 4, 4, 4, 3, 2, 1],
+     [1, 2, 3, 4, 0, 4, 3, 2, 1],
+     [1, 2, 3, 4, 4, 4, 3, 2, 1],
+     [1, 2, 3, 3, 3, 3, 3, 2, 1],
+     [1, 2, 2, 2, 2, 2, 2, 2, 1],
+     [1, 1, 1, 1, 1, 1, 1, 1, 1]
+     ])
+
+window_in_place = np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1],
+                            [1, 2, 2, 2, 2, 2, 2, 2, 1],
+                            [1, 2, 3, 3, 3, 3, 3, 2, 1],
+                            [1, 2, 3, 4, 4, 4, 3, 2, 1],
+                            [1, 2, 3, 4, 0, 1, 1, 1, 1],
+                            [1, 1, 1, 1, 1, 1, 1, 1, 1],
+                            [1, 1, 1, 1, 1, 1, 1, 1, 1],
+                            [1, 1, 1, 1, 1, 1, 1, 1, 1],
+                            [1, 1, 1, 1, 1, 1, 1, 1, 1]])
+
+
+def seg_inpainting(input_img, inp_pixels, inp_color, in_place=False, paint_back=False):
+    window_weights = window_in_place if in_place else window_no_replace
+    finished = True
+    passed_pixels = []
+
+    img = input_img.copy()
+    h, w = img.shape
+    label_maps = []
+    for i in range(semantic_nc):
+        label_maps.append((img == i).astype(img.dtype))
+    for (i, j) in inp_pixels:
+        prev_c = img[i, j]
+        if prev_c != inp_color:
+            continue
+        counts = []
+        up = 0 if i >= r else r - i
+        down = 2 * r + 1 if i + r < h else 2 * r + 1 - ((i + r) - h + 1)
+        left = 0 if j >= r else r - j
+        right = 2 * r + 1 if j + r < w else 2 * r + 1 - ((j + r) - w + 1)
+        weights = window_weights[up:down, left:right]
+
+        for cl in range(semantic_nc):
+            counts.append(
+                (label_maps[cl][max(i - r, 0):min(i + r + 1, h), max(j - r, 0):min(j + r + 1, w)] * weights).sum())
+        ind = np.argsort(-np.array(counts))[:4]
+
+        paint_c = ind[0]
+        if paint_c == inp_color:
+            for k in range(1, 4):
+                if counts[ind[k]] != 0 and ind[k] != inp_color:
+                    paint_c = ind[k]
+                    break
+
+        img[i, j] = paint_c
+        if paint_c == inp_color:
+            passed_pixels.append((i, j))
+            finished = False
+            continue
+        if in_place:
+            label_maps[prev_c][i, j] = 0
+            label_maps[paint_c][i, j] = 1
+    return img, finished, passed_pixels
+
+
+def segmentation_inpainting(seg):
+    back_label = 0
+    back_pixels = []
+    people_pixels = []
+    transport_pixels = []
+    big_transport_pixels = []
+    h, w = seg.shape
+    res = []
+    for i in range(h):
+        for j in range(w):
+            lab = seg[i, j]
+            if lab == back_label:
+                back_pixels.append((i, j))
+            elif lab >= 23 and lab <= 24:
+                people_pixels.append((i, j))
+                continue
+            elif lab == 25 or 29 <= lab <= 30:
+                transport_pixels.append((i, j))
+            elif lab >= 26 and lab <= 27:
+                big_transport_pixels.append((i, j))
+                continue
+
+    inp_pixels = back_pixels
+    total_pixels = h * w
+    max_pixels = int(total_pixels * 0.15)
+    #     print("max:", max_pixels)
+    #     print("init:", len(inp_pixels))
+    #     print("people:", len(people_pixels))
+    #     print("transport:", len(transport_pixels))
+
+    for ps in [people_pixels, transport_pixels, big_transport_pixels]:
+        extra_pixels = ps.copy()
+        if len(inp_pixels) + len(extra_pixels) < max_pixels:
+            inp_pixels += extra_pixels
+            for (i, j) in extra_pixels:
+                seg[i, j] = back_label
+        else:
+            break
+
+    start_time = time.time()
+
+    passes = 0
+    max_passes = 40
+    finished = False
+    while (not finished) and passes < max_passes:
+        seg, finished, inp_pixels = seg_inpainting(seg, inp_pixels, back_label)
+        passes += 1
+
+    total_time = time.time() - start_time
+    print('avg time per pass:{0:.2f} s'.format((total_time / passes)))
+    print('total time:{0:.2f} s'.format(total_time))
+    print('passes:', passes)
+
+    return seg
+
 
 def create_segmentation(imgs):
     results = []
