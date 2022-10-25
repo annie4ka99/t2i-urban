@@ -1,6 +1,7 @@
 import os
 import time
 import numpy as np
+import argparse
 import torch
 from rudalle.pipelines import super_resolution
 from rudalle import get_realesrgan
@@ -14,8 +15,6 @@ from utils.queries import get_query
 from segmentation.segmentation import create_segmentation
 from generation.generate import generate_images
 
-
-IMG_NUM = 10
 SAMPLES_PER_IMG = 1
 
 RES_DIR = "results"
@@ -76,9 +75,11 @@ def save_originals(images, prefix):
         image.save(os.path.join(RES_DIR, f'{prefix}_{i}.png'))
 
 
-def text_to_images(text, save_res=False, count=10):
-    # locations = get_locations(text)
-    locations = [text]
+def text_to_images(text, save_res=False, count=10, from_text=False):
+    if from_text:
+        locations = [text]
+    else:
+        locations = get_locations(text)
     results = []
     best_results = []
 
@@ -88,11 +89,10 @@ def text_to_images(text, save_res=False, count=10):
     start_time = time.time()
     for location in locations:
         location_results = []
-        best_location_results = []
 
         query = get_query(location)
-        images = get_unsplash_images(query, IMG_NUM)
-        images += get_deposit_photos_images(query, IMG_NUM)
+        images = get_unsplash_images(query, count)
+        images += get_deposit_photos_images(query, count)
 
         images = [resize_and_crop(img) for img in images]
         numpy_images = [np.asarray(img) for img in images]
@@ -122,3 +122,18 @@ def text_to_images(text, save_res=False, count=10):
     print('avg time for generating 1 image: %.3f s' % (time_spent / len(results)))
 
     return best_results
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--text', type=str, default='Stranger man was walking down the street.', help='input text')
+    parser.add_argument('--save-dir', type=str, default='./results', help='results will be saved here')
+    parser.add_argument('--samples', type=int, default=10, help='number of images to be generated')
+    parser.add_argument('--from-text', action='store_true', default=False,
+                        help='with this option enabled images are generated directly from the text '
+                             + 'instead of generating from text location '
+                             + '(in this case text must contain a description of the urban location)')
+
+    opt = parser.parse_args()
+    RES_DIR = opt.save_dir
+    text_to_images(opt.text, save_res=True, count=opt.samples, from_text=opt.from_text)

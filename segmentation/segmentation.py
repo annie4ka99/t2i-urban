@@ -1,5 +1,6 @@
 import os
 import random
+import time
 import numpy as np
 from PIL import Image
 import cv2
@@ -103,9 +104,9 @@ model_ade = get_model('segmentation/configs/segformer/segformer_mit-b5_640x640_1
 model_cityscapes = get_model('segmentation/configs/segformer/segformer_mit-b5_8x1_1024x1024_160k_cityscapes.py',
                              'segmentation/checkpoints/segformer_mit-b5_8x1_1024x1024_160k_cityscapes_20211206_072934-87a052ec.pth')
 model_facades = get_model('segmentation/configs/segformer/segformer_mit-b5_512x512_160k_facades_ade.py',
-                          'segmentation//work_dirs/facades_ade_segformer/latest.pth')
+                          'segmentation/work_dirs/facades_ade_segformer/latest.pth')
 model_urban = get_model('segmentation/configs/segformer/segformer_mit-b5_512x512_160k_ade_urban.py',
-                        'segmentation//work_dirs/ade_urban_segformer/latest.pth')
+                        'segmentation/work_dirs/ade_urban_segformer/latest.pth')
 
 semantic_nc = 31
 back_color = 0
@@ -184,7 +185,6 @@ def segmentation_inpainting(seg):
     transport_pixels = []
     big_transport_pixels = []
     h, w = seg.shape
-    res = []
     for i in range(h):
         for j in range(w):
             lab = seg[i, j]
